@@ -143,7 +143,7 @@ collect_command_parent:
 // And aborts hard
 // DOES NOT RETURN
 Exit_Failure:
-    mov x1, 1                   // All is wrong
+    mov x0, 1                   // All is wrong
     mov x8, 93                  // put the exit syscall number in x0
     svc 0                       // Call it a bad day
 
