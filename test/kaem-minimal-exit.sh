@@ -7,9 +7,16 @@ if [ "$#" -ne 1 ]; then
 fi
 HEX0=$1
 
-tmp=${TMPDIR:-/tmp}/kaem-minimal-exit.$$
-mkdir -p "$tmp"
-trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+top=$(cd "$(dirname "$0")/.." && pwd)
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/kaem-minimal-exit.XXXXXX") || {
+	echo "cannot make a temporary directory" >&2
+	exit 1
+}
+trap 'rm -rf "$tmp"' 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # kaem-minimal runs commands by absolute path, and true and false are
 # usually shell builtins, so look them up on PATH by hand.
@@ -18,7 +25,7 @@ find_on_path()
 	name=$1
 	old_ifs=$IFS
 	IFS=:
-	for dir in $PATH; do
+	for dir in ${PATH:-}; do
 		case $dir in
 		/*)
 			if [ -f "$dir/$name" ] && [ -x "$dir/$name" ]; then
@@ -38,7 +45,7 @@ TRUE=$(find_on_path true)
 FALSE=$(find_on_path false)
 TOUCH=$(find_on_path touch)
 
-"$HEX0" kaem-minimal.hex0 "$tmp/kaem-0"
+"$HEX0" "$top/kaem-minimal.hex0" "$tmp/kaem-0"
 chmod +x "$tmp/kaem-0"
 
 failures=0
@@ -61,10 +68,10 @@ set +e
 "$tmp/kaem-0" "$tmp/failure.kaem" >/dev/null 2>&1
 status=$?
 set -e
-if [ "$status" -ne 0 ]; then
-	echo "ok: failing command exits $status"
+if [ "$status" -eq 1 ]; then
+	echo "ok: failing command exits 1"
 else
-	echo "FAIL: failing command exits 0, expected nonzero"
+	echo "FAIL: failing command exits $status, expected 1"
 	failures=$((failures + 1))
 fi
 if [ -e "$marker" ]; then
